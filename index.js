@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
-const port = 8080;
+const port = 3000;
+const path = require('path');
 
 const tasks = [
   { id: 1, description: 'Hacer la compra', completed: false },
@@ -10,7 +11,7 @@ const tasks = [
 
 // Middleware para validar métodos HTTP válidos
 const validateMethod = (req, res, next) => {
-  if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'PUT') {
+  if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'PUT' && req.method !== 'DELETE') {
     res.status(400).send('Invalid request method');
   } else {
     next();
@@ -29,18 +30,10 @@ const validateParams = (req, res, next) => {
 
 // Middleware para manejar errores en las solicitudes POST y PUT en el router list-edit-router
 const validateRequestData = (req, res, next) => {
-  if (req.method === 'POST') {
+  if (req.method === 'POST' || req.method === 'PUT') {
     if (Object.keys(req.body).length === 0) {
       res.status(400).send('Empty request body');
     } else if (!req.body.description || typeof req.body.description !== 'string' || typeof req.body.completed !== 'boolean') {
-      res.status(400).send('Invalid or missing task data');
-    } else {
-      next();
-    }
-  } else if (req.method === 'PUT') {
-    if (Object.keys(req.body).length === 0) {
-      res.status(400).send('Empty request body');
-    } else if (!req.body.id || isNaN(req.body.id) || !req.body.description || typeof req.body.description !== 'string' || typeof req.body.completed !== 'boolean') {
       res.status(400).send('Invalid or missing task data');
     } else {
       next();
@@ -51,6 +44,7 @@ const validateRequestData = (req, res, next) => {
 };
 
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(validateMethod);
 
 app.get('/tasks', (req, res) => {
@@ -83,6 +77,22 @@ app.put('/tasks/:id', validateParams, validateRequestData, (req, res) => {
     };
     res.json(tasks[taskIndex]);
   }
+});
+
+app.delete('/tasks/:id', validateParams, (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const taskIndex = tasks.findIndex(task => task.id === taskId);
+
+  if (taskIndex === -1) {
+    res.status(404).send('Task not found');
+  } else {
+    tasks.splice(taskIndex, 1);
+    res.sendStatus(204);
+  }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, () => {
