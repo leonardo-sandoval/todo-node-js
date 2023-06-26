@@ -1,77 +1,104 @@
 const express = require('express');
-const path = require('path');
-const jwt = require('jsonwebtoken');
-const cors = require('cors'); // Agregado el módulo 'cors'
-require('dotenv').config({ path: path.join(__dirname, '..', 'index.env') });
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const app = express();
 const port = 8000;
-const secret = process.env.JWT_SECRET;
 
-const users = [
-  { username: 'user1', password: 'password1' }
-];
+// Utilizar middleware
+app.use(cors());
+app.use(bodyParser.json());
 
-// Middleware para verificar el token JWT
-const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization;
+// Lista de tareas
+let tasks = [];
 
-  if (!token) {
-    return res.status(401).json({ error: 'Token no proporcionado' });
+// Endpoint para crear una nueva tarea
+app.post('/tasks', (req, res) => {
+  const { title, description } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({ error: 'Se requiere un título y una descripción' });
   }
 
-  jwt.verify(token, secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ error: 'Token inválido' });
-    }
+  const newTask = {
+    id: tasks.length + 1,
+    title,
+    description,
+    completed: false
+  };
 
-    req.user = decoded;
-    next();
-  });
-};
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Agregar el middleware 'cors'
-app.use(cors())
-
-// Establecer la ruta estática para servir archivos desde la carpeta "public"
-app.use(express.static(path.join(__dirname, '..', 'public')));
-
-// Establecer la ruta estática para servir archivos desde la carpeta "assets"
-app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
-
-// Ruta para enviar el archivo "index.html" cuando se solicita "/"
-app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, '..', 'public', 'index.html');
-  res.sendFile(indexPath);
+  tasks.push(newTask);
+  res.status(201).json(newTask);
 });
 
-// Ruta para el archivo "script.js"
-app.get('/script.js', (req, res) => {
-  const scriptPath = path.join(__dirname, '..', 'js', 'script.js');
-  res.type('text/javascript');
-  res.sendFile(scriptPath);
-});
+// Endpoint para actualizar una tarea
+app.put('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const { title, description, completed } = req.body;
 
-// Ruta de autenticación para generar un token JWT
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
+  const task = tasks.find(task => task.id === taskId);
 
-  const user = users.find(u => u.username === username && u.password === password);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Credenciales inválidas' });
+  if (!task) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
   }
 
-  const token = jwt.sign({ username: user.username }, secret);
-  res.json({ token });
+  if (title) {
+    task.title = title;
+  }
+
+  if (description) {
+    task.description = description;
+  }
+
+  if (completed !== undefined) {
+    task.completed = completed;
+  }
+
+  res.json(task);
 });
 
-// Ruta protegida que requiere un token JWT válido
-app.get('/protected', verifyToken, (req, res) => {
-  res.json({ message: 'Acceso permitido' });
+// Endpoint para eliminar una tarea
+app.delete('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+
+  const index = tasks.findIndex(task => task.id === taskId);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
+  }
+
+  tasks.splice(index, 1);
+  res.sendStatus(204);
+});
+
+// Endpoint para obtener todas las tareas
+app.get('/tasks', (req, res) => {
+  res.json(tasks);
+});
+
+// Endpoint para obtener las tareas completas
+app.get('/tasks/completed', (req, res) => {
+  const completedTasks = tasks.filter(task => task.completed);
+  res.json(completedTasks);
+});
+
+// Endpoint para obtener las tareas incompletas
+app.get('/tasks/incomplete', (req, res) => {
+  const incompleteTasks = tasks.filter(task => !task.completed);
+  res.json(incompleteTasks);
+});
+
+// Endpoint para obtener una sola tarea
+app.get('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+
+  const task = tasks.find(task => task.id === taskId);
+
+  if (!task) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
+  }
+
+  res.json(task);
 });
 
 // Iniciar el servidor
