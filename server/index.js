@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const cors = require('cors'); // Agregado el módulo 'cors'
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '..', 'index.env') });
 
 const app = express();
 const port = 8000;
@@ -34,7 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Agregar el middleware 'cors'
-app.use(cors());
+app.use(cors())
 
 // Establecer la ruta estática para servir archivos desde la carpeta "public"
 app.use(express.static(path.join(__dirname, '..', 'public')));
